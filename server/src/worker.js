@@ -3,7 +3,7 @@ require("dotenv").config();
 const { Worker } = require("bullmq");
 const connection = require("./config/redis");
 const connectDB = require("./config/db");
-
+const http = require("http");
 const Job = require("./models/Job");
 const ImportLog = require("./models/ImportLog");
 const { JOB_IMPORT_QUEUE } = require("./queue/jobQueue");
@@ -120,3 +120,16 @@ async function startWorker() {
 }
 
 startWorker();
+
+// Dummy server for render to keep the worker as web service
+
+const PORT = process.env.PORT || 10000;
+
+http
+  .createServer((_, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("Worker running");
+  })
+  .listen(PORT, () => {
+    console.log(`🟢 Worker listening on ${PORT}`);
+  });
