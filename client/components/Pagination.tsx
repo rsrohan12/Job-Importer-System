@@ -23,7 +23,7 @@ export default function Pagination({
           className={`rounded-lg border px-3 py-1.5 text-sm ${
             prevDisabled
               ? "pointer-events-none opacity-40"
-              : "hover:bg-gray-50"
+              : "hover:bg-gray-300"
           }`}
         >
           Prev
@@ -34,7 +34,7 @@ export default function Pagination({
           className={`rounded-lg border px-3 py-1.5 text-sm ${
             nextDisabled
               ? "pointer-events-none opacity-40"
-              : "hover:bg-gray-50"
+              : "hover:bg-gray-300"
           }`}
         >
           Next

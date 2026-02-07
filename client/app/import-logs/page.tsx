@@ -25,7 +25,7 @@ export default async function ImportLogsPage({
           Import History
         </h1>
         <p className="mt-1 text-sm text-gray-600">
-          Track each feed import run (URL = filename).
+          Track each feed import (URL = filename).
         </p>
       </div>
 
