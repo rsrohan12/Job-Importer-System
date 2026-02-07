@@ -1,11 +1,14 @@
 require("dotenv").config();
 
 const { Worker } = require("bullmq");
+const http = require("http");
+
 const connection = require("./config/redis");
 const connectDB = require("./config/db");
-const http = require("http");
+
 const Job = require("./models/Job");
 const ImportLog = require("./models/ImportLog");
+
 const { JOB_IMPORT_QUEUE } = require("./queue/jobQueue");
 
 function buildBulkOps(batch) {
@@ -31,9 +34,12 @@ function buildBulkOps(batch) {
 }
 
 async function processBatch(job) {
-  const { importLogId, batch } = job.data;
+  const { importLogId, batch, sourceUrl } = job.data;
 
-  // Bulk write
+  console.log(
+    `📦 Processing queue job=${job.id} | batchSize=${batch?.length} | source=${sourceUrl}`,
+  );
+
   const ops = buildBulkOps(batch);
 
   try {
@@ -42,7 +48,10 @@ async function processBatch(job) {
     const inserted = result.upsertedCount || 0;
     const updated = result.matchedCount || 0;
 
-    // Update log
+    console.log(
+      `✅ bulkWrite done | inserted=${inserted} | updated=${updated} | job=${job.id}`,
+    );
+
     const updatedLog = await ImportLog.findByIdAndUpdate(
       importLogId,
       {
@@ -56,6 +65,10 @@ async function processBatch(job) {
       { new: true },
     );
 
+    console.log(
+      `🧾 Log updated | importLogId=${importLogId} | processed=${updatedLog.processedBatches}/${updatedLog.totalBatches}`,
+    );
+
     if (updatedLog.processedBatches >= updatedLog.totalBatches) {
       await ImportLog.findByIdAndUpdate(importLogId, {
         $set: {
@@ -63,11 +76,16 @@ async function processBatch(job) {
           finishedAt: new Date(),
         },
       });
+
+      console.log(`🏁 Import completed | importLogId=${importLogId}`);
     }
 
     return { inserted, updated };
   } catch (err) {
-    // If bulkWrite fails, mark all batch jobs as failed reasons
+    console.error(
+      `❌ bulkWrite failed | job=${job.id} | importLogId=${importLogId} | error=${err.message}`,
+    );
+
     const reasons = batch.slice(0, 30).map((j) => ({
       externalId: j.externalId,
       reason: err.message,
@@ -85,6 +103,10 @@ async function processBatch(job) {
       { new: true },
     );
 
+    console.log(
+      `🧾 Failure logged | importLogId=${importLogId} | processed=${updatedLog.processedBatches}/${updatedLog.totalBatches}`,
+    );
+
     if (updatedLog.processedBatches >= updatedLog.totalBatches) {
       await ImportLog.findByIdAndUpdate(importLogId, {
         $set: {
@@ -92,6 +114,8 @@ async function processBatch(job) {
           finishedAt: new Date(),
         },
       });
+
+      console.log(`🏁 Import completed (with failures) | importLogId=${importLogId}`);
     }
 
     throw err;
@@ -99,30 +123,43 @@ async function processBatch(job) {
 }
 
 async function startWorker() {
+  console.log("🔄 Starting worker...");
   await connectDB();
+  console.log("✅ MongoDB connected (worker)");
 
-  const worker = new Worker(
-    JOB_IMPORT_QUEUE,
-    async (job) => processBatch(job),
-    {
-      connection,
-      concurrency: Number(process.env.WORKER_CONCURRENCY || 5),
-      prefix: "job-importer",
-    },
-  );
+  const worker = new Worker(JOB_IMPORT_QUEUE, processBatch, {
+    connection,
+    concurrency: Number(process.env.WORKER_CONCURRENCY || 5),
+    prefix: "job-importer",
+  });
 
-  worker.on("completed", () => {});
+  worker.on("ready", () => {
+    console.log("🟢 BullMQ worker is ready and listening to queue");
+  });
+
+  worker.on("completed", (job) => {
+    console.log(`🎉 Job completed: ${job.id}`);
+  });
+
   worker.on("failed", (job, err) => {
     console.error("❌ Worker job failed:", job?.id, err.message);
+  });
+
+  worker.on("error", (err) => {
+    console.error("🔥 Worker error:", err.message);
   });
 
   console.log("✔️ Worker started");
 }
 
-startWorker();
+startWorker().catch((err) => {
+  console.error("❌ Worker failed to start:", err);
+  process.exit(1);
+});
 
-// Dummy server for render to keep the worker as web service
-
+/**
+ * Dummy HTTP server so Render can health-check this service.
+ */
 const PORT = process.env.PORT || 10000;
 
 http
@@ -131,5 +168,5 @@ http
     res.end("Worker running");
   })
   .listen(PORT, () => {
-    console.log(`🟢 Worker listening on ${PORT}`);
+    console.log(`🟢 Worker health server listening on ${PORT}`);
   });
