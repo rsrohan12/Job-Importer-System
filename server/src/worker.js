@@ -37,7 +37,7 @@ async function processBatch(job) {
   const { importLogId, batch, sourceUrl } = job.data;
 
   console.log(
-    `📦 Processing queue job=${job.id} | batchSize=${batch?.length} | source=${sourceUrl}`,
+    `Processing queue job=${job.id} | batchSize=${batch?.length} | source=${sourceUrl}`,
   );
 
   const ops = buildBulkOps(batch);
@@ -49,7 +49,7 @@ async function processBatch(job) {
     const updated = result.matchedCount || 0;
 
     console.log(
-      `✅ bulkWrite done | inserted=${inserted} | updated=${updated} | job=${job.id}`,
+      `bulkWrite done | inserted=${inserted} | updated=${updated} | job=${job.id}`,
     );
 
     const updatedLog = await ImportLog.findByIdAndUpdate(
@@ -66,7 +66,7 @@ async function processBatch(job) {
     );
 
     console.log(
-      `🧾 Log updated | importLogId=${importLogId} | processed=${updatedLog.processedBatches}/${updatedLog.totalBatches}`,
+      `Log updated | importLogId=${importLogId} | processed=${updatedLog.processedBatches}/${updatedLog.totalBatches}`,
     );
 
     if (updatedLog.processedBatches >= updatedLog.totalBatches) {
@@ -77,13 +77,13 @@ async function processBatch(job) {
         },
       });
 
-      console.log(`🏁 Import completed | importLogId=${importLogId}`);
+      console.log(`Import completed | importLogId=${importLogId}`);
     }
 
     return { inserted, updated };
   } catch (err) {
     console.error(
-      `❌ bulkWrite failed | job=${job.id} | importLogId=${importLogId} | error=${err.message}`,
+      `bulkWrite failed | job=${job.id} | importLogId=${importLogId} | error=${err.message}`,
     );
 
     const reasons = batch.slice(0, 30).map((j) => ({
@@ -104,7 +104,7 @@ async function processBatch(job) {
     );
 
     console.log(
-      `🧾 Failure logged | importLogId=${importLogId} | processed=${updatedLog.processedBatches}/${updatedLog.totalBatches}`,
+      `Failure logged | importLogId=${importLogId} | processed=${updatedLog.processedBatches}/${updatedLog.totalBatches}`,
     );
 
     if (updatedLog.processedBatches >= updatedLog.totalBatches) {
@@ -115,7 +115,7 @@ async function processBatch(job) {
         },
       });
 
-      console.log(`🏁 Import completed (with failures) | importLogId=${importLogId}`);
+      console.log(`Import completed (with failures) | importLogId=${importLogId}`);
     }
 
     throw err;
@@ -123,7 +123,7 @@ async function processBatch(job) {
 }
 
 async function startWorker() {
-  console.log("🔄 Starting worker...");
+  console.log("Starting worker...");
   await connectDB();
   console.log("✅ MongoDB connected (worker)");
 
@@ -146,7 +146,7 @@ async function startWorker() {
   });
 
   worker.on("error", (err) => {
-    console.error("🔥 Worker error:", err.message);
+    console.error("Worker error:", err.message);
   });
 
   console.log("✔️ Worker started");

@@ -14,6 +14,8 @@ const connection = new IORedis(redisUrl, {
 module.exports = connection;
 
 
+/* use below one when on development phase to work with redis locally */
+
 // const IORedis = require("ioredis");
 
 // const connection = new IORedis({
